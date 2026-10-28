@@ -2,6 +2,14 @@ name: PlatformIO Cloud Build
 
 on:
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "ESP board to compile"
+        required: true
+        type: choice
+        options:
+          - esp8266
+          - esp32
   push:
     branches: [main]
 
@@ -11,6 +19,7 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.environment }}
+    if: github.event_name != 'workflow_dispatch' || matrix.environment == inputs.environment
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
