@@ -68,7 +68,14 @@ void handleUpdateUpload() {
     }
 
     Serial.printf("OTA upload started: %s\n", upload.filename.c_str());
+#if defined(ESP8266)
+    // Reserve the available sketch space; the ESP8266 updater API does not
+    // expose UPDATE_SIZE_UNKNOWN in all supported core versions.
+    size_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+    if (!Update.begin(maxSketchSpace)) {
+#else
     if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
+#endif
       Update.printError(Serial);
       updateFailed = true;
     }
@@ -90,7 +97,7 @@ void handleUpdateUpload() {
       }
     }
   } else if (upload.status == UPLOAD_FILE_ABORTED) {
-    Update.abort();
+    // Do not reboot after an incomplete upload.
     updateFailed = true;
     Serial.println("OTA upload aborted.");
   }
@@ -107,8 +114,12 @@ void setup() {
   WiFi.softAPConfig(localIP, gateway, subnet);
   WiFi.softAP(TEST_SSID, TEST_PASSWORD);
 
+#if defined(ESP8266)
+  server.collectHeaders("X-ESP-OTA-Key");
+#else
   const char* headerKeys[] = {"X-ESP-OTA-Key"};
   server.collectHeaders(headerKeys, 1);
+#endif
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/api/status", HTTP_GET, handleStatus);
